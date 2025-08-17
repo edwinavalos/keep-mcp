@@ -80,7 +80,48 @@ def update_note(note_id: str, title: str = None, text: str = None) -> str:
     if title is not None:
         note.title = title
     if text is not None:
-        note.text = text
+        # Check if this is a list note and handle it differently
+        if hasattr(note, 'items') and hasattr(note, 'add'):  # It's a List
+            # For lists, replace all items with new text content
+            note.text = text  # Use the fixed setter from gkeepapi
+        else:
+            # For regular notes, set text normally
+            note.text = text
+    
+    keep.sync()  # Ensure changes are saved to the server
+    return json.dumps(serialize_note(note))
+
+@mcp.tool()
+def clear_checked_items(note_id: str) -> str:
+    """
+    Remove all checked items from a list note.
+    
+    Args:
+        note_id (str): The ID of the list note to clear checked items from
+        
+    Returns:
+        str: JSON string containing the updated note's data
+        
+    Raises:
+        ValueError: If the note doesn't exist, cannot be modified, or is not a list
+    """
+    keep = get_client()
+    note = keep.get(note_id)
+    
+    if not note:
+        raise ValueError(f"Note with ID {note_id} not found")
+    
+    if not can_modify_note(note):
+        raise ValueError(f"Note with ID {note_id} cannot be modified (missing keep-mcp label and UNSAFE_MODE is not enabled)")
+    
+    # Check if this is a list note
+    if not (hasattr(note, 'items') and hasattr(note, 'checked')):
+        raise ValueError(f"Note with ID {note_id} is not a list note")
+    
+    # Remove all checked items
+    checked_items = list(note.checked)  # Create a copy of the list
+    for item in checked_items:
+        note.remove(item)
     
     keep.sync()  # Ensure changes are saved to the server
     return json.dumps(serialize_note(note))
