@@ -5,7 +5,7 @@ description = "MCP Server for Google Keep"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "gkeepapi>=0.16.0",
+    "gkeepapi @ git+https://github.com/edwinavalos/gkeepapi.git@list-set-bug",
     "mcp[cli]",
 ]
 authors = [
@@ -32,6 +32,9 @@ mcp = "server.cli:main"
 [build-system]
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/server"]
