@@ -40,22 +40,40 @@ def get_client():
 
 def serialize_note(note):
     """
-    Serialize a Google Keep note into a dictionary.
+    Serialize a Google Keep note or list into a dictionary.
     
     Args:
-        note: A Google Keep note object
+        note: A Google Keep note or list object
         
     Returns:
-        dict: A dictionary containing the note's id, title, text, pinned status, color and labels
+        dict: A dictionary containing the note's id, title, text/items, pinned status, color and labels
     """
-    return {
+    import gkeepapi.node as node_module
+    
+    base_data = {
         'id': note.id,
         'title': note.title,
-        'text': note.text,
         'pinned': note.pinned,
         'color': note.color.value if note.color else None,
-        'labels': [{'id': label.id, 'name': label.name} for label in note.labels.all()]
+        'labels': [{'id': label.id, 'name': label.name} for label in note.labels.all()],
+        'type': note.type.value
     }
+    
+    # Check if this is a List node
+    if isinstance(note, node_module.List):
+        base_data['items'] = [
+            {
+                'text': item.text,
+                'checked': item.checked,
+                'id': item.id
+            } for item in note.items
+        ]
+        base_data['text'] = note.text  # Lists also have a text representation
+    else:
+        # Regular Note
+        base_data['text'] = note.text
+    
+    return base_data
 
 def can_modify_note(note):
     """

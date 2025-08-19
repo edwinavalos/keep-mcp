@@ -112,6 +112,172 @@ def delete_note(note_id: str) -> str:
     keep.sync()  # Ensure deletion is saved to the server
     return json.dumps({"message": f"Note {note_id} marked for deletion"})
 
+@mcp.tool()
+def create_list(title: str = None, items: list = None) -> str:
+    """
+    Create a new list with title and items.
+    
+    Args:
+        title (str, optional): The title of the list
+        items (list, optional): A list of items, each item should be a dict with 'text' and optionally 'checked' keys
+        
+    Returns:
+        str: JSON string containing the created list's data
+    """
+    keep = get_client()
+    
+    # Convert items format if provided
+    list_items = []
+    if items:
+        for item in items:
+            if isinstance(item, dict):
+                text = item.get('text', '')
+                checked = item.get('checked', False)
+            else:
+                # If item is just a string
+                text = str(item)
+                checked = False
+            list_items.append((text, checked))
+    
+    note = keep.createList(title=title, items=list_items)
+    
+    # Get or create the keep-mcp label
+    label = keep.findLabel('keep-mcp')
+    if not label:
+        label = keep.createLabel('keep-mcp')
+    
+    # Add the label to the list
+    note.labels.add(label)
+    keep.sync()  # Ensure the list is created and labeled on the server
+    
+    return json.dumps(serialize_note(note))
+
+@mcp.tool()
+def add_list_item(list_id: str, text: str, checked: bool = False) -> str:
+    """
+    Add an item to an existing list.
+    
+    Args:
+        list_id (str): The ID of the list to add item to
+        text (str): The text of the item to add
+        checked (bool, optional): Whether the item is checked
+        
+    Returns:
+        str: JSON string containing the updated list's data
+        
+    Raises:
+        ValueError: If the list doesn't exist, is not a list, or cannot be modified
+    """
+    import gkeepapi.node as node_module
+    
+    keep = get_client()
+    note = keep.get(list_id)
+    
+    if not note:
+        raise ValueError(f"List with ID {list_id} not found")
+    
+    if not isinstance(note, node_module.List):
+        raise ValueError(f"Node with ID {list_id} is not a list")
+    
+    if not can_modify_note(note):
+        raise ValueError(f"List with ID {list_id} cannot be modified (missing keep-mcp label and UNSAFE_MODE is not enabled)")
+    
+    note.add(text, checked)
+    keep.sync()  # Ensure changes are saved to the server
+    return json.dumps(serialize_note(note))
+
+@mcp.tool()
+def update_list_item(list_id: str, item_id: str, text: str = None, checked: bool = None) -> str:
+    """
+    Update an item in a list.
+    
+    Args:
+        list_id (str): The ID of the list containing the item
+        item_id (str): The ID of the item to update
+        text (str, optional): New text for the item
+        checked (bool, optional): New checked status for the item
+        
+    Returns:
+        str: JSON string containing the updated list's data
+        
+    Raises:
+        ValueError: If the list doesn't exist, is not a list, cannot be modified, or item not found
+    """
+    import gkeepapi.node as node_module
+    
+    keep = get_client()
+    note = keep.get(list_id)
+    
+    if not note:
+        raise ValueError(f"List with ID {list_id} not found")
+    
+    if not isinstance(note, node_module.List):
+        raise ValueError(f"Node with ID {list_id} is not a list")
+    
+    if not can_modify_note(note):
+        raise ValueError(f"List with ID {list_id} cannot be modified (missing keep-mcp label and UNSAFE_MODE is not enabled)")
+    
+    # Find the item
+    item = None
+    for list_item in note.items:
+        if list_item.id == item_id:
+            item = list_item
+            break
+    
+    if not item:
+        raise ValueError(f"Item with ID {item_id} not found in list {list_id}")
+    
+    if text is not None:
+        item.text = text
+    if checked is not None:
+        item.checked = checked
+    
+    keep.sync()  # Ensure changes are saved to the server
+    return json.dumps(serialize_note(note))
+
+@mcp.tool()
+def delete_list_item(list_id: str, item_id: str) -> str:
+    """
+    Delete an item from a list.
+    
+    Args:
+        list_id (str): The ID of the list containing the item
+        item_id (str): The ID of the item to delete
+        
+    Returns:
+        str: JSON string containing the updated list's data
+        
+    Raises:
+        ValueError: If the list doesn't exist, is not a list, cannot be modified, or item not found
+    """
+    import gkeepapi.node as node_module
+    
+    keep = get_client()
+    note = keep.get(list_id)
+    
+    if not note:
+        raise ValueError(f"List with ID {list_id} not found")
+    
+    if not isinstance(note, node_module.List):
+        raise ValueError(f"Node with ID {list_id} is not a list")
+    
+    if not can_modify_note(note):
+        raise ValueError(f"List with ID {list_id} cannot be modified (missing keep-mcp label and UNSAFE_MODE is not enabled)")
+    
+    # Find the item
+    item = None
+    for list_item in note.items:
+        if list_item.id == item_id:
+            item = list_item
+            break
+    
+    if not item:
+        raise ValueError(f"Item with ID {item_id} not found in list {list_id}")
+    
+    item.delete()
+    keep.sync()  # Ensure changes are saved to the server
+    return json.dumps(serialize_note(note))
+
 def main():
     mcp.run(transport='stdio')
 
