@@ -65,7 +65,8 @@ def serialize_note(note):
             {
                 'text': item.text,
                 'checked': item.checked,
-                'id': item.id
+                'id': item.id,
+                'super_list_item_id': item.super_list_item_id
             } for item in note.items
         ]
         base_data['text'] = note.text  # Lists also have a text representation
